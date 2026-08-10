@@ -1,0 +1,47 @@
+# ==================================================
+# BACKEND
+# ==================================================
+
+complaint-management-backend/target/
+
+# Backend secrets
+complaint-management-backend/.env
+complaint-management-backend/src/main/resources/application-local.properties
+complaint-management-backend/src/main/resources/application-secret.properties
+
+
+# ==================================================
+# FRONTEND
+# ==================================================
+
+complaint-management-frontend/node_modules/
+complaint-management-frontend/dist/
+complaint-management-frontend/build/
+
+# Frontend environment files
+complaint-management-frontend/.env
+complaint-management-frontend/.env.local
+complaint-management-frontend/.env.development.local
+complaint-management-frontend/.env.production.local
+
+
+# ==================================================
+# GENERAL
+# ==================================================
+
+*.log
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
