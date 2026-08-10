@@ -1,13 +1,8 @@
-# Multi-stage build for Java 21 Spring Boot Application
-FROM eclipse-temurin:21-jdk-alpine AS build
+# Multi-stage Docker build for Java 21 Spring Boot Application
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-
-# Install dos2unix to ensure linux line-endings for mvnw
-RUN apk add --no-cache dos2unix
-
 COPY . .
-RUN dos2unix ./mvnw && chmod +x ./mvnw
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
