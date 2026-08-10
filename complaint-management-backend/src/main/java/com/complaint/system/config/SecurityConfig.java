@@ -56,41 +56,41 @@ public class SecurityConfig {
                         requestCache.disable()
                 )
 
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
+    // React frontend (served by Spring Boot)
+    .requestMatchers(
+        "/", 
+        "/index.html", 
+        "/favicon.ico", 
+        "/favicon.svg", 
+        "/icons.svg", 
+        "/assets/**", 
+        "/*.js", 
+        "/*.css"
+    ).permitAll()
 
-                        // Public endpoints
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
-                                "/error"
-                        ).permitAll()
+    // Public endpoints
+    .requestMatchers(
+        "/api/auth/**", 
+        "/swagger-ui/**", 
+        "/swagger-ui.html", 
+        "/v3/api-docs/**", 
+        "/error"
+    ).permitAll()
 
-                        // Admin APIs
-                        .requestMatchers("/api/admin/**")
-                        .hasRole("ADMIN")
+    // Admin APIs
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // Staff APIs
-                        .requestMatchers("/api/staff/**")
-                        .hasAnyRole(
-                                "STAFF",
-                                "ADMIN"
-                        )
+    // Staff APIs
+    .requestMatchers("/api/staff/**").hasAnyRole("STAFF", "ADMIN")
 
-                        // Complaint APIs
-                        .requestMatchers("/api/complaints/**")
-                        .hasAnyRole(
-                                "USER",
-                                "STAFF",
-                                "ADMIN"
-                        )
+    // Complaint APIs
+    .requestMatchers("/api/complaints/**").hasAnyRole("USER", "STAFF", "ADMIN")
 
-                        // Everything else requires login
-                        .anyRequest()
-                        .authenticated()
-                )
+    // Everything else requires login
+    .anyRequest().authenticated()
+)
+
 
                 // JWT filter
                 .addFilterBefore(
