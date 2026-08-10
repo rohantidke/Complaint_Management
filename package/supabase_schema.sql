@@ -1,0 +1,173 @@
+-- =============================================================================
+-- Supabase / PostgreSQL Schema Definition for Complaint Management System
+-- Compatible with PostgreSQL 13+ and Supabase SQL Editor
+-- =============================================================================
+
+-- Enable extension if required
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- -----------------------------------------------------------------------------
+-- 1. DROP EXISTING TABLES AND TYPES (For clean re-runs)
+-- -----------------------------------------------------------------------------
+DROP TABLE IF EXISTS complaint_feedback CASCADE;
+DROP TABLE IF EXISTS complaint_history CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS complaints CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS departments CASCADE;
+
+DROP TYPE IF EXISTS user_role CASCADE;
+DROP TYPE IF EXISTS complaint_priority CASCADE;
+DROP TYPE IF EXISTS complaint_status CASCADE;
+
+-- -----------------------------------------------------------------------------
+-- 2. CREATE CUSTOM ENUM TYPES
+-- -----------------------------------------------------------------------------
+CREATE TYPE user_role AS ENUM ('ADMIN', 'STAFF', 'USER');
+
+CREATE TYPE complaint_priority AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+
+CREATE TYPE complaint_status AS ENUM (
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+  'REJECTED',
+  'REOPENED',
+  'ESCALATED'
+);
+
+-- -----------------------------------------------------------------------------
+-- 3. CREATE TABLE: DEPARTMENTS
+-- -----------------------------------------------------------------------------
+CREATE TABLE departments (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  description VARCHAR(500),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT NULL
+);
+
+-- -----------------------------------------------------------------------------
+-- 4. CREATE TABLE: USERS
+-- -----------------------------------------------------------------------------
+CREATE TABLE users (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  phone VARCHAR(255) DEFAULT NULL,
+  role user_role NOT NULL DEFAULT 'USER',
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT NULL
+);
+
+-- -----------------------------------------------------------------------------
+-- 5. CREATE TABLE: COMPLAINTS
+-- -----------------------------------------------------------------------------
+CREATE TABLE complaints (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  complaint_number VARCHAR(255) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  description VARCHAR(3000) NOT NULL,
+  category VARCHAR(255) NOT NULL,
+  location VARCHAR(500) DEFAULT NULL,
+  priority complaint_priority NOT NULL DEFAULT 'MEDIUM',
+  status complaint_status NOT NULL DEFAULT 'SUBMITTED',
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL,
+  assigned_staff_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  sla_deadline TIMESTAMPTZ DEFAULT NULL,
+  resolved_at TIMESTAMPTZ DEFAULT NULL,
+  closed_at TIMESTAMPTZ DEFAULT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT NULL
+);
+
+-- Indexes for Complaints performance query optimization
+CREATE INDEX idx_complaint_number ON complaints(complaint_number);
+CREATE INDEX idx_complaint_status ON complaints(status);
+CREATE INDEX idx_complaint_priority ON complaints(priority);
+CREATE INDEX idx_complaint_created_at ON complaints(created_at);
+
+-- -----------------------------------------------------------------------------
+-- 6. CREATE TABLE: COMPLAINT_HISTORY
+-- -----------------------------------------------------------------------------
+CREATE TABLE complaint_history (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  complaint_id BIGINT NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
+  old_status complaint_status DEFAULT NULL,
+  new_status complaint_status NOT NULL,
+  changed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  comment VARCHAR(2000) DEFAULT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- -----------------------------------------------------------------------------
+-- 7. CREATE TABLE: COMPLAINT_FEEDBACK
+-- -----------------------------------------------------------------------------
+CREATE TABLE complaint_feedback (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  complaint_id BIGINT NOT NULL UNIQUE REFERENCES complaints(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment VARCHAR(1000) DEFAULT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- -----------------------------------------------------------------------------
+-- 8. CREATE TABLE: NOTIFICATIONS
+-- -----------------------------------------------------------------------------
+CREATE TABLE notifications (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  message VARCHAR(255) NOT NULL,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- -----------------------------------------------------------------------------
+-- 9. CREATE TABLE: PASSWORD_RESET_TOKENS
+-- -----------------------------------------------------------------------------
+CREATE TABLE password_reset_tokens (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  token VARCHAR(255) NOT NULL UNIQUE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- =============================================================================
+-- SEED INITIAL DATA
+-- =============================================================================
+
+-- Departments
+INSERT INTO departments (id, name, description, active, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
+(1, 'Maintenance', 'Handles building maintenance and repair complaints.', TRUE, '2026-08-08 03:58:22.386852+00', '2026-08-10 02:52:16.542155+00'),
+(2, 'Electrical', 'Electrical related complaints', TRUE, '2026-08-09 14:08:44.831774+00', '2026-08-10 02:52:19.351099+00'),
+(3, 'Water', 'Water Supply Management', TRUE, '2026-08-10 00:19:31.978234+00', '2026-08-10 00:19:31.978234+00'),
+(4, 'Network', 'Network and Internet Issues', TRUE, '2026-08-10 01:10:59.944488+00', '2026-08-10 01:10:59.944488+00');
+
+-- Reset identity sequence for departments
+SELECT setval(pg_get_serial_sequence('departments', 'id'), COALESCE(MAX(id), 1)) FROM departments;
+
+-- Default Admin User
+INSERT INTO users (id, name, email, password, phone, role, enabled, department_id, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
+(2, 'Suraj Bade', 'surajbade2004@gmail.com', '$2a$10$MWbKFS6S6/BGhCp1K4v8iO59.GqdKJvDPh16tR9nE.nE4piDLq01G', '9876543210', 'ADMIN', TRUE, NULL, '2026-08-08 03:16:10.975539+00', '2026-08-10 12:39:07.720389+00');
+
+-- Reset identity sequence for users
+SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE(MAX(id), 1)) FROM users;
+
+-- Sample Complaint Data
+INSERT INTO complaints (id, category, closed_at, complaint_number, created_at, description, location, priority, resolved_at, sla_deadline, status, title, updated_at, assigned_staff_id, department_id, user_id) OVERRIDING SYSTEM VALUE VALUES
+(1, 'Maintenance', NULL, 'CMP-2026-9AFD1899', '2026-08-08 03:48:11.388151+00', 'There is continuous water leakage near classroom 205.', 'Building A, Classroom 205', 'HIGH', '2026-08-08 19:19:03.441256+00', NULL, 'RESOLVED', 'Water leakage in classroom', '2026-08-08 19:19:03.446136+00', NULL, 1, 2);
+
+-- Reset identity sequence for complaints
+SELECT setval(pg_get_serial_sequence('complaints', 'id'), COALESCE(MAX(id), 1)) FROM complaints;
