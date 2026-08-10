@@ -20,6 +20,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -40,6 +41,9 @@ public class SecurityConfig {
             throws Exception {
 
         http
+
+                // Enable CORS configuration source
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
                 // Disable CSRF because this is a REST API
                 .csrf(csrf -> csrf.disable())
@@ -72,6 +76,8 @@ public class SecurityConfig {
     // Public endpoints
     .requestMatchers(
         "/api/auth/**", 
+        "/api/health",
+        "/actuator/**",
         "/swagger-ui/**", 
         "/swagger-ui.html", 
         "/v3/api-docs/**", 
