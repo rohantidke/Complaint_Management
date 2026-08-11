@@ -54,6 +54,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public String register(RegisterRequest request) {
 
+        if (request == null || request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new BadRequestException("Email is required");
+        }
+
         String email = request.getEmail()
                 .trim()
                 .toLowerCase();

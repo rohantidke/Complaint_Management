@@ -194,9 +194,13 @@ public class GlobalExceptionHandler {
                 "Internal Server Error"
         );
 
+        ex.printStackTrace();
+
         response.put(
                 "message",
-                "An unexpected error occurred"
+                ex.getMessage() != null && !ex.getMessage().isBlank()
+                        ? ex.getMessage()
+                        : "An unexpected error occurred"
         );
 
         return ResponseEntity
