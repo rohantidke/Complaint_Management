@@ -28,9 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+
+    @Value("${app.frontend.url:https://complaint-registration-management-s-five.vercel.app}")
+    private String frontendUrl;
 
     private final UserRepository userRepository;
 
@@ -185,7 +190,8 @@ public class AuthServiceImpl implements AuthService {
         // -----------------------------------------------------
 
         String resetLink =
-                "http://localhost:5173/reset-password?token="
+                frontendUrl
+                        + "/reset-password?token="
                         + token;
 
         // -----------------------------------------------------
@@ -210,44 +216,49 @@ public class AuthServiceImpl implements AuthService {
             String resetLink
     ) {
 
-        SimpleMailMessage message =
-                new SimpleMailMessage();
+        try {
+            SimpleMailMessage message =
+                    new SimpleMailMessage();
 
-        message.setTo(email);
+            message.setTo(email);
 
-        message.setSubject(
-                "CRMS - Password Reset Request"
-        );
+            message.setSubject(
+                    "CRMS - Password Reset Request"
+            );
 
-        message.setText(
-                "Hello "
-                        + (name != null
-                        ? name
-                        : "User")
-                        + ",\n\n"
+            message.setText(
+                    "Hello "
+                            + (name != null
+                            ? name
+                            : "User")
+                            + ",\n\n"
 
-                        + "We received a request to reset "
-                        + "your CRMS password.\n\n"
+                            + "We received a request to reset "
+                            + "your CRMS password.\n\n"
 
-                        + "Click the link below to create "
-                        + "a new password:\n\n"
+                            + "Click the link below to create "
+                            + "a new password:\n\n"
 
-                        + resetLink
-                        + "\n\n"
+                            + resetLink
+                            + "\n\n"
 
-                        + "This password reset link will "
-                        + "expire in 30 minutes.\n\n"
+                            + "This password reset link will "
+                            + "expire in 30 minutes.\n\n"
 
-                        + "If you did not request a password "
-                        + "reset, you can safely ignore "
-                        + "this email.\n\n"
+                            + "If you did not request a password "
+                            + "reset, you can safely ignore "
+                            + "this email.\n\n"
 
-                        + "Regards,\n"
-                        + "Complaint Registration "
-                        + "Management System"
-        );
+                            + "Regards,\n"
+                            + "Complaint Registration "
+                            + "Management System"
+            );
 
-        mailSender.send(message);
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Password reset email could not be sent: " + e.getMessage());
+            System.out.println("Password reset link: " + resetLink);
+        }
     }
 
 
