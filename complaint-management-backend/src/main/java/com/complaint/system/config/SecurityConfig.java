@@ -14,6 +14,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
+import org.springframework.http.HttpMethod;
+
 @Configuration
 @RequiredArgsConstructor
 @EnableMethodSecurity
@@ -61,6 +63,8 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                    // Allow CORS OPTIONS pre-flight requests
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
     // React frontend (served by Spring Boot)
     .requestMatchers(
         "/", 
