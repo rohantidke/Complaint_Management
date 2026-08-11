@@ -18,11 +18,13 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, length = 255)
     private String message;
 
-@   Column(name = "is_read", nullable = false)
-    private boolean isRead;
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
 
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)

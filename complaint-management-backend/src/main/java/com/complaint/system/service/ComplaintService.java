@@ -1,4 +1,3 @@
-
 package com.complaint.system.service;
 
 import com.complaint.system.dto.ComplaintAssignmentRequest;
@@ -60,5 +59,6 @@ public interface ComplaintService {
             String complaintNumber,
             String staffEmail
     );
-}
 
+   
+}

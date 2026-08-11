@@ -281,158 +281,205 @@ getComplaintHistory(
 // =========================================================
 // ADMIN - ASSIGN COMPLAINT
 // =========================================================
-
 @Override
 @Transactional
 public ComplaintAssignmentResponse assignComplaint(
-        String complaintNumber,
-        ComplaintAssignmentRequest request,
-        String adminEmail) {
+String complaintNumber,
+ComplaintAssignmentRequest request,
+String adminEmail) {
 
-    Complaint complaint =
-            complaintRepository
-                    .findByComplaintNumber(
-                            complaintNumber
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Complaint not found"
-                            )
-                    );
+// =========================
+// FIND COMPLAINT
+// =========================
 
-    Department department =
-            departmentRepository
-                    .findById(
-                            request.getDepartmentId()
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Department not found"
-                            )
-                    );
+Complaint complaint =
+        complaintRepository
+                .findByComplaintNumber(complaintNumber)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Complaint not found"
+                        )
+                );
 
-    if (!Boolean.TRUE.equals(
-            department.getActive())) {
+// =========================
+// FIND DEPARTMENT
+// =========================
 
-        throw new BadRequestException(
-                "Department is inactive"
-        );
-    }
+Department department =
+        departmentRepository
+                .findById(request.getDepartmentId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Department not found"
+                        )
+                );
 
-    User staff =
-            userRepository
-                    .findById(
-                            request.getStaffId()
-                    )
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Staff member not found"
-                            )
-                    );
+if (!Boolean.TRUE.equals(department.getActive())) {
 
-    if (staff.getRole() != Role.STAFF) {
+    throw new BadRequestException(
+            "Department is inactive"
+    );
+}
 
-        throw new BadRequestException(
-                "Selected user is not a staff member"
-        );
-    }
+// =========================
+// FIND STAFF
+// =========================
 
-    if (!Boolean.TRUE.equals(
-            staff.getEnabled())) {
+User staff =
+        userRepository
+                .findById(request.getStaffId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Staff member not found"
+                        )
+                );
 
-        throw new BadRequestException(
-                "Staff member is inactive"
-        );
-    }
+if (staff.getRole() != Role.STAFF) {
 
-    if (staff.getDepartment() == null
-            || !staff.getDepartment()
-                    .getId()
-                    .equals(department.getId())) {
+    throw new BadRequestException(
+            "Selected user is not a staff member"
+    );
+}
 
-        throw new BadRequestException(
-                "Staff does not belong to selected department"
-        );
-    }
+if (!Boolean.TRUE.equals(staff.getEnabled())) {
 
-    User admin =
-            userRepository
-                    .findByEmail(adminEmail)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Admin user not found"
-                            )
-                    );
+    throw new BadRequestException(
+            "Staff member is inactive"
+    );
+}
 
-    if (admin.getRole() != Role.ADMIN) {
+// =========================
+// VERIFY STAFF DEPARTMENT
+// =========================
 
-        throw new UnauthorizedException(
-                "Only an admin can assign complaints"
-        );
-    }
+if (staff.getDepartment() == null
+        || !staff.getDepartment()
+                .getId()
+                .equals(department.getId())) {
 
-    ComplaintStatus oldStatus =
-            complaint.getStatus();
+    throw new BadRequestException(
+            "Staff does not belong to selected department"
+    );
+}
 
-    complaint.setDepartment(department);
+// =========================
+// FIND ADMIN
+// =========================
 
-    complaint.setAssignedStaff(staff);
+User admin =
+        userRepository
+                .findByEmail(adminEmail)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Admin user not found"
+                        )
+                );
 
-    notificationService.createNotification(
+if (admin.getRole() != Role.ADMIN) {
+
+    throw new UnauthorizedException(
+            "Only an admin can assign complaints"
+    );
+}
+
+// =========================
+// SAVE OLD STATUS
+// =========================
+
+ComplaintStatus oldStatus =
+        complaint.getStatus();
+
+// =========================
+// ASSIGN COMPLAINT
+// =========================
+
+complaint.setDepartment(department);
+complaint.setAssignedStaff(staff);
+complaint.setStatus(ComplaintStatus.ASSIGNED);
+
+Complaint savedComplaint =
+        complaintRepository.save(complaint);
+
+// =========================
+// CREATE HISTORY
+// =========================
+
+ComplaintHistory history =
+        ComplaintHistory.builder()
+                .complaint(savedComplaint)
+                .oldStatus(oldStatus)
+                .newStatus(ComplaintStatus.ASSIGNED)
+                .comment(
+                        "Complaint assigned to "
+                                + staff.getName()
+                                + " from department "
+                                + department.getName()
+                )
+                .changedBy(admin)
+                .build();
+
+complaintHistoryRepository.save(history);
+
+// =========================
+// NOTIFICATION TO STAFF
+// =========================
+
+notificationService.createNotification(
         staff,
         "Complaint "
-                + complaint.getComplaintNumber()
+                + savedComplaint.getComplaintNumber()
                 + " has been assigned to you."
 );
 
-    complaint.setStatus(
-            ComplaintStatus.ASSIGNED
+// =========================
+// NOTIFICATION TO USER
+// =========================
+
+User complaintUser =
+        savedComplaint.getUser();
+
+if (complaintUser != null) {
+
+    notificationService.createNotification(
+            complaintUser,
+            "Your complaint "
+                    + savedComplaint.getComplaintNumber()
+                    + " has been assigned to "
+                    + staff.getName()
+                    + " from the "
+                    + department.getName()
+                    + " department."
     );
+}
 
-    Complaint savedComplaint =
-            complaintRepository.save(complaint);
+// =========================
+// RESPONSE
+// =========================
 
-    ComplaintHistory history =
-            ComplaintHistory.builder()
-                    .complaint(savedComplaint)
-                    .oldStatus(oldStatus)
-                    .newStatus(
-                            ComplaintStatus.ASSIGNED
-                    )
-                    .comment(
-                            "Complaint assigned to "
-                                    + staff.getName()
-                                    + " from department "
-                                    + department.getName()
-                    )
-                    .changedBy(admin)
-                    .build();
+return ComplaintAssignmentResponse.builder()
+        .complaintNumber(
+                savedComplaint.getComplaintNumber()
+        )
+        .status(
+                savedComplaint.getStatus()
+        )
+        .departmentId(
+                department.getId()
+        )
+        .departmentName(
+                department.getName()
+        )
+        .staffId(
+                staff.getId()
+        )
+        .staffName(
+                staff.getName()
+        )
+        .message(
+                "Complaint assigned successfully"
+        )
+        .build();
 
-    complaintHistoryRepository.save(history);
-
-    return ComplaintAssignmentResponse.builder()
-            .complaintNumber(
-                    savedComplaint.getComplaintNumber()
-            )
-            .status(
-                    savedComplaint.getStatus()
-            )
-            .departmentId(
-                    department.getId()
-            )
-            .departmentName(
-                    department.getName()
-            )
-            .staffId(
-                    staff.getId()
-            )
-            .staffName(
-                    staff.getName()
-            )
-            .message(
-                    "Complaint assigned successfully"
-            )
-            .build();
 }
 
 
