@@ -168,6 +168,30 @@ public class GlobalExceptionHandler {
     }
 
     // =========================================================
+    // DATA INTEGRITY VIOLATION - 400
+    // =========================================================
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Database Constraint Violation");
+
+        String msg = "Data integrity violation occurred";
+        if (ex.getMostSpecificCause() != null && ex.getMostSpecificCause().getMessage() != null) {
+            msg = ex.getMostSpecificCause().getMessage();
+        }
+        response.put("message", msg);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    // =========================================================
     // ALL OTHER UNEXPECTED ERRORS - 500
     // =========================================================
 
